@@ -1,0 +1,19 @@
+# ansible/playbook.yml
+
+- name: Configure Database Server (Rocky)
+  hosts: server_role_Database
+  become: true
+  remote_user: rocky
+  vars:
+    page_message: "Hello from database"
+  roles:
+    - frontend_server  # Re-using the Nginx role here!
+
+- name: Configure Web Server (Debian)
+  hosts: server_role_Web
+  become: true
+  remote_user: ubuntu   
+  vars:
+    page_message: "Hello from web"
+  roles:
+    - frontend_server

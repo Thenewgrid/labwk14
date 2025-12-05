@@ -1,0 +1,57 @@
+# ansible/roles/frontend_server/tasks/main.yml
+
+- name: Install nginx on Debian/Ubuntu
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install nginx on Rocky/RedHat
+  ansible.builtin.dnf:
+    name: nginx
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# --- Fix for Rocky Linux Config Structure ---
+- name: Ensure nginx sites directories exist (Rocky Linux fix)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+
+- name: Edit nginx.conf to include sites-enabled (Rocky Linux fix)
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    insertafter: 'http {'
+    line: '    include /etc/nginx/sites-enabled/*;'
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# --- NEW TASK: Create the web root folder ---
+- name: Ensure web root directory exists
+  ansible.builtin.file:
+    path: /var/www/html
+    state: directory
+    mode: '0755'
+# --------------------------------------------
+
+- name: Create index.html
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+  notify: Reload nginx
+
+- name: Create nginx configuration
+  ansible.builtin.copy:
+    src: default.conf
+    dest: /etc/nginx/sites-available/default
+  notify: Reload nginx
+
+- name: Enable nginx configuration
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-enabled/default
+    state: link
+  notify: Reload nginx
